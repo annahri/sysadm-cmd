@@ -1,3 +1,84 @@
 #! /bin/bash
 
-set -eo pipefail
+set -euo pipefail
+
+cmd="$(basename $0)"
+full_cmd="$0"
+modules_dir="modules"
+modules_tmpfile="$modules_dir/modules"
+functions_dir="$modules_dir/functions"
+export cmd full_cmd modules_dir modules_tmpfile functions_dir
+
+source $modules_dir/main.shm
+
+version() {
+	cat<<-EOF
+	SYSADM-CMD CLI version v$VERSION	
+	EOF
+	exit
+}
+
+oneline_usage="$cmd [-h|-v|-m] <check|modify|install|remove> [options]"
+
+usage() { 
+	cat<<-EOF
+		Usage: $oneline_usage
+        Use '$cmd -h' for more details.
+	EOF
+	exit
+}
+
+longhelp() {
+	cat <<-EOH
+		Usage: $oneline_usage
+
+        Actions:
+          check|c       Check server(s) statuses, eg. uptime, load, hostname, etc.
+          modify|m      Modify server's configuration.
+          install|i     Install listed packages to a server.
+          remove|r      Remove listed packages from a server.                      
+
+        check:
+          List all server statuses and prints it to stdout.
+          -h --host <IP>    
+                List all statuses of <IP>. If not mentioned, it will get statuses from all servers.
+          -
+
+          options:
+          -f --file <file>  
+                Outputs to a file.
+        
+        modify:
+          -h --host <IP>
+                Specify the server.
+        
+        install:
+          -h --host <IP>
+                Specify the server.
+
+          options:
+          -p --package <packages>
+                Packages to be installed. Wrap with double quotes "" for multiple packages.
+          -l --list <file>
+                Install packages listed in file.
+	EOH
+	exit
+}
+
+begin() {
+	case $1 in
+		-h|--help) longhelp ;;
+		-v|--version) version ;;
+		-m|--modules) list_modules ;;
+		check|c) action_check $* ;;
+		modify|m) action_modify $* ;;
+		install|i) action_install $* ;;
+		remove|r) action_remove $* ;;
+		*) die "$cmd ${BOLD}$1${RESET}\n${RED}Unknown operation.${RESET}" ;;
+	esac
+}
+	
+# If no args given
+[ $# -eq 0 ] && usage
+
+begin $*

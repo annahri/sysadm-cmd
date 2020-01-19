@@ -1,0 +1,50 @@
+#! /bin/bash
+
+list=./hosts
+
+check_uptime() {
+	# Check server's uptime
+	hosts=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $list) 
+
+	if [ $# -eq 0 ]; then
+		echo "Fetching data..."
+		echo "IP-addr Hostname Uptime" > /tmp/checkup
+		for host in $hosts; do
+			hostname=$(/usr/bin/ssh $host hostname)
+			uptime=$(/usr/bin/ssh $host uptime)
+			echo "$i $hostname $uptime" >> /tmp/checkup
+		done
+		column -s" " -t /tmp/checkup
+	else
+		echo "nothing"
+	fi
+}
+
+check_temperature() {
+	# Check server's temperature
+	echo
+}
+
+check_ram() {
+	# Check RAM usage
+	echo
+}
+
+check_load() {
+	# Check server load
+	echo
+}
+
+check_online() {
+	# Check online hosts
+	echo
+}
+
+check_all () {
+	# All statuses
+	echo
+}
+
+modify_hostname() {
+	echo
+}

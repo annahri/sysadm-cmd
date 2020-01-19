@@ -1,0 +1,66 @@
+#! /usr/bin/env bash
+source $modules_dir/formatting.shm
+shopt -s globstar
+export VERSION="1.0"
+
+host_list="hosts"
+export host_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $host_list)
+
+declare -a modules_list
+
+load_modules() {	
+	if [ -d $functions_dir ]; then
+		rm -f $modules_tmpfile
+		for function in $functions_dir/*.shm; do
+			source $function
+			echo "$function" >> $modules_tmpfile
+		done
+		unset function
+	else
+		die "$modules_dir is missing."
+	fi
+	store_modules_list
+}
+
+store_modules_list() {
+	modules=$(declare -F | awk '/check|modify|install|remove/ {print $NF}'|sort);
+	for module in $modules; do
+		modules_list+=("$module")
+	done
+	export modules_list
+}
+
+list_modules() {
+	echo -e "${BOLD}Loaded modules:${RESET}"
+	for module in ${modules_list[@]}; do
+		echo "   $module"
+	done
+	exit
+}
+
+die() {
+	echo -e "$*"
+	exit 1
+}
+
+load_modules
+
+do_check() {
+	echo
+}
+
+action_check() {
+	echo $1
+}
+
+action_modify() {
+	echo "Modify"
+}
+
+action_install() {
+	echo "Install"
+}
+
+action_remove() {
+	echo "Remove"
+}
