@@ -1,6 +1,10 @@
 #! /usr/bin/env bash
 source $modules_dir/formatting.shm
+source $modules_dir/helper.shm
+
+set -o errexit -o pipefail -o noclobber -o nounset
 shopt -s globstar
+
 export VERSION="1.0"
 
 host_list="hosts"
@@ -46,11 +50,56 @@ die() {
 load_modules
 
 do_check() {
-	echo
+	debug_opts
+	# Filter options
+	verify_options
+}
+
+verify_options() {
+	declare -a available_opts=( "uptime" "users" "os" "ram" "load" )
+
+	for option in ${options[@]}; do
+		if ! array_contains "$option" "${available_opts[@]}" ; then
+			echo -e "Unknown option: ${RED}$option${RESET}"
+			die "Available options: ${available_opts[@]}"
+		fi
+	done
+}
+
+debug_opts() {
+	printf "Captured options : "
+	for opt in ${options[@]}; do
+		printf "${GREEN}$opt${RESET} "
+	done
+	printf "\n"
 }
 
 action_check() {
-	echo $1
+	declare -a options=()
+	host=
+	file=
+	until [ $# -eq 0 ]; do
+		case $1 in
+			-o|--options)
+				options=(${2//,/ })
+				shift 2
+				;;
+			-h|--host)
+				host="$2"
+				shift 2
+				;;
+			-f|--file)
+				file="$2"
+				shift
+				;;
+			*)
+				die "Unknown option $1"
+				;;
+		esac
+	done
+	[ ${#options[@]} -eq 0 ] && options=( "all" )
+
+	do_check
 }
 
 action_modify() {
