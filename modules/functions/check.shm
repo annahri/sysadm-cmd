@@ -1,50 +1,44 @@
 #! /bin/bash
 
-list=./hosts
+list=/tmp/hosts
 
-check_uptime() {
-	# Check server's uptime
-	hosts=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $list) 
+[ ! -f $list ] && die "Hosts file not found."
 
-	if [ $# -eq 0 ]; then
-		echo "Fetching data..."
-		echo "IP-addr Hostname Uptime" > /tmp/checkup
-		for host in $hosts; do
-			hostname=$(/usr/bin/ssh $host hostname)
-			uptime=$(/usr/bin/ssh $host uptime)
-			echo "$i $hostname $uptime" >> /tmp/checkup
-		done
-		column -s" " -t /tmp/checkup
+readonly ssh="/usr/bin/ssh"
+readonly separator="---"
+
+function_check() {
+	if [ -z $host ]; then
+	   	hosts=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $list)
 	else
-		echo "nothing"
+		hosts="$host"
 	fi
+
+	[ $verbose -eq 1 ] && [ $file ] && verbose_msg "Writing to $file ..."
+	local username="root"
+	local fetched_output=
+
+	for host in $hosts; do
+		[ $verbose -eq 1 ] && verbose_msgnl "Fetching data for ${BOLD}$host${RESET}... "
+		hostname=$($ssh ${username}@$host hostname)
+		[ 1 -eq $get_uptime ] || [ 1 -eq $get_all ] && uptime=$($ssh ${username}@$host "cat /proc/uptime | cut -d' ' -f1") && uptime=$(convert_seconds $uptime)
+		[ 1 -eq $get_users ] || [ 1 -eq $get_all ] && users=$($ssh ${username}@$host cat /etc/passwd | awk -F ':' '$3>=1000 {print $1}' | tr '\n' ',') && users=${users%,}
+		[ 1 -eq $get_os ] || [ 1 -eq $get_all ] && osversion=$($ssh ${username}@$host cat /etc/os-release | grep "PRETT" | sed 's/.*="\(.*\)"/\1/' | tr ' ' '-')
+		[ 1 -eq $get_ram ] || [ 1 -eq $get_all ] && ram=$($ssh ${username}@$host cat /proc/meminfo | grep MemTotal | awk '{$2=$2/(1024^2); print $2}' | xargs -I{} python -c 'print(round({}))') && ram=${ram%.*}
+		[ 1 -eq $get_cpucores ] || [ 1 -eq $get_all ] && cpucores=$($ssh ${username}@$host lscpu | awk '/^CPU\(s\)/ {print $2}')
+		
+		output="$host $hostname ${uptime:-$separator} ${users:-$separator} ${osversion:-$separator} ${ram:-$separator} ${cpucores:-$separator}"
+
+		if [ ! -z $file ]; then 
+			echo "$output" >> $file
+			[ $verbose -eq 1 ] && verbose_msg "data for $host is appended to $file"
+		else
+			[ $verbose -eq 1 ] && verbose_msg "done"
+			fetched_output="${fetched_output}\n$output"
+		fi
+	done
+
+	echo -e "$fetched_output" | column -t -s ' ' -N "IP ADDRESS,HOSTNAME,UPTIME,USERS,OS VERSION,MEMORY (GiB),CPU(s)" -W 4 -R "MEMORY (GiB),CPU(s)"
+	exit 0
 }
 
-check_temperature() {
-	# Check server's temperature
-	echo
-}
-
-check_ram() {
-	# Check RAM usage
-	echo
-}
-
-check_load() {
-	# Check server load
-	echo
-}
-
-check_online() {
-	# Check online hosts
-	echo
-}
-
-check_all () {
-	# All statuses
-	echo
-}
-
-modify_hostname() {
-	echo
-}

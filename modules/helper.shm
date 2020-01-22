@@ -5,3 +5,20 @@ array_contains() {
     for e; do [[ "$e" == "$match" ]] && return 0; done
 	return 1
 }
+
+convert_seconds() {
+	seconds=${1%%.*}
+
+	local d=$((seconds/60/60/24))
+	local h=$((seconds/60/60%24))
+	local m=$((seconds/60%60))
+	printf "%dd:%dh:%dm\n" $d $h $m
+}
+
+verbose_msg() {
+	echo -e "$*" >&2
+}
+
+verbose_msgnl() {
+	printf "$*" >&2
+}
