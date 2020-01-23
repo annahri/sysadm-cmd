@@ -65,7 +65,10 @@ longhelp() {
 	exit
 }
 
-begin() {
+main() {
+	# If no args given
+	[ $# -eq 0 ] && usage
+
 	operation="$1"
 	shift
 
@@ -81,7 +84,4 @@ begin() {
 	esac
 }
 	
-# If no args given
-[ $# -eq 0 ] && usage
-
-begin $*
+main $@

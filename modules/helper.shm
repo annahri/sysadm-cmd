@@ -6,6 +6,14 @@ array_contains() {
 	return 1
 }
 
+ask_confirmation() {
+	read -r -p "$* [Y/n]" response
+	response=${response,,}
+	if [[ ! $response =~ ^(yes|y| ) ]]; then
+		exit 0
+	fi
+}
+
 convert_seconds() {
 	seconds=${1%%.*}
 
@@ -16,9 +24,27 @@ convert_seconds() {
 }
 
 verbose_msg() {
-	echo -e "$*" >&2
+	if [ $verbose -eq 1 ]; then
+		echo -e "$*" >&2
+	fi
 }
 
 verbose_msgnl() {
-	printf "$*" >&2
+	if [ $verbose -eq 1 ]; then
+		printf "$*" >&2
+	fi
+}
+
+spinner() {
+	while :;do 
+		for s in / - \\ \|; do 
+			echo -en "\r[$s] $*" >&2
+			sleep .1
+		done
+	done & spinner="$!"
+}
+
+end_spinner() {
+	kill -SIGTERM $spinner
+	echo -ne "\033[2K"
 }

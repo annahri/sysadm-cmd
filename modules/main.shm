@@ -7,8 +7,8 @@ shopt -s globstar
 
 export VERSION="1.0"
 
-host_list="hosts"
-export host_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $host_list)
+hosts_list="/tmp/hosts"
+export hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_list)
 
 declare -a modules_list=()
 declare -a available_opts=( uptime users os ram cpucores all )
@@ -52,8 +52,6 @@ die() {
 load_modules
 
 do_check() {
-	debug_opts
-	# Filter options
 	verify_options
 	function_check
 }

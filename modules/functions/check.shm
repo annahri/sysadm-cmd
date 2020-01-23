@@ -1,25 +1,21 @@
 #! /bin/bash
 
-list=/tmp/hosts
-
-[ ! -f $list ] && die "Hosts file not found."
+[ -z "$hosts_list" ] && die "Hosts file not found."
 
 readonly ssh="/usr/bin/ssh"
 readonly separator="---"
 
 function_check() {
-	if [ -z $host ]; then
-	   	hosts=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $list)
-	else
-		hosts="$host"
-	fi
+	[ ! -z $file ] && rm -f $file
+	[ -z $host ] && hosts="$hosts_list" || hosts="$host"
 
-	[ $verbose -eq 1 ] && [ $file ] && verbose_msg "Writing to $file ..."
+	[ $file ] && verbose_msg "Writing to $file ... "
 	local username="root"
 	local fetched_output=
 
 	for host in $hosts; do
-		[ $verbose -eq 1 ] && verbose_msgnl "Fetching data for ${BOLD}$host${RESET}... "
+		spinner "Gathering data "
+		verbose_msgnl "Fetching data for ${BOLD}$host${RESET}... " 
 		hostname=$($ssh ${username}@$host hostname)
 		[ 1 -eq $get_uptime ] || [ 1 -eq $get_all ] && uptime=$($ssh ${username}@$host "cat /proc/uptime | cut -d' ' -f1") && uptime=$(convert_seconds $uptime)
 		[ 1 -eq $get_users ] || [ 1 -eq $get_all ] && users=$($ssh ${username}@$host cat /etc/passwd | awk -F ':' '$3>=1000 {print $1}' | tr '\n' ',') && users=${users%,}
@@ -31,14 +27,23 @@ function_check() {
 
 		if [ ! -z $file ]; then 
 			echo "$output" >> $file
-			[ $verbose -eq 1 ] && verbose_msg "data for $host is appended to $file"
+			verbose_msg "data for $host is appended to $file"
 		else
-			[ $verbose -eq 1 ] && verbose_msg "done"
+			verbose_msg "done "
 			fetched_output="${fetched_output}\n$output"
 		fi
-	done
 
-	echo -e "$fetched_output" | column -t -s ' ' -N "IP ADDRESS,HOSTNAME,UPTIME,USERS,OS VERSION,MEMORY (GiB),CPU(s)" -W 4 -R "MEMORY (GiB),CPU(s)"
+	end_spinner
+
+	done
+	echo
+
+	if [ ! -z $file ]; then
+		ask_confirmation "View $file now?"
+		column -t -s ' ' -N "IP ADDRESS,HOSTNAME,UPTIME,USERS,OS VERSION,MEMORY (GiB),CPU(s)" -W 4 -R "MEMORY (GiB),CPU(s)" $file
+	else
+		echo -e "$fetched_output" | column -t -s ' ' -N "IP ADDRESS,HOSTNAME,UPTIME,USERS,OS VERSION,MEMORY (GiB),CPU(s)" -W 4 -R "MEMORY (GiB),CPU(s)"
+	fi
 	exit 0
 }
 
