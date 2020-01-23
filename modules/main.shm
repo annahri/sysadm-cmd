@@ -45,7 +45,7 @@ load_modules() {
 load_hosts() {
 	hosts_file="/etc/hosts"
 	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
-	[ "$hosts_file" = "/etc/hosts" ] && [ -z "$hosts_list" ] && die "Please"
+	[ "$hosts_file" = "/etc/hosts" ] && [ -z "$hosts_list" ] && die "$cmd is using $hosts_file to load hosts list. Please list your servers IP addresses there."
 }
 
 die() {
