@@ -50,7 +50,7 @@ load_hosts() {
 
 die() {
 	echo -e "$1"
-	exit "$2"
+	exit 1
 }
 
 load_modules
