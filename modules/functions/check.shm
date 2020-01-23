@@ -1,7 +1,5 @@
 #! /bin/bash
 
-[ -z "$hosts_list" ] && die "Hosts file not found."
-
 readonly ssh="/usr/bin/ssh"
 readonly separator="---"
 
