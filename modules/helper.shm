@@ -23,6 +23,31 @@ convert_seconds() {
 	printf "%dd:%dh:%dm\n" $d $h $m
 }
 
+msg() {
+	printf '%b\n' "$1" >&2
+}
+
+msg_success() {
+	msg "${GREEN}[✔]${RESET} ${*}"
+}
+
+msg_info() {
+	msg "${BLUE}[i]${RESET} ${*}"
+}
+
+msg_error() {
+	msg "${RED}[✘]${RESET} ${*}"
+	exit 1
+}
+
+msg_warn() {
+	msg "${YELLOW}[!]${RESET} ${*}"
+}
+
+echo_f() {
+	printf '%b\n' "$1$2${RESET}" >&2
+}
+
 verbose_msg() {
 	if [ $verbose -eq 1 ]; then
 		echo -e "$*" >&2
@@ -42,9 +67,21 @@ spinner() {
 			sleep .1
 		done
 	done & spinner="$!"
+	pids="${spinner} ${pids:-}"
+	trap end_spinner EXIT SIGTERM SIGKILL SIGHUP SIGQUIT SIGABRT
 }
 
 end_spinner() {
-	kill -SIGTERM $spinner
+	kill -SIGTERM $spinner > /dev/null 2>&1
+
 	echo -ne "\033[2K"
+}
+
+end_spinners() {
+	for pid in $pids; do
+		kill -SIGTERM $pid > /dev/null 2>&1
+	done
+
+	echo -ne "\033[2K"
+	echo
 }

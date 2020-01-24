@@ -10,6 +10,7 @@ functions_dir="$modules_dir/functions"
 export cmd full_cmd modules_dir modules_tmpfile functions_dir
 
 source $modules_dir/main.shm
+source $modules_dir/formatting.shm
 
 version() {
 	cat<<-EOF
@@ -65,6 +66,10 @@ longhelp() {
 	exit
 }
 
+#longhelp() {
+#	echo_f "$BOLD" "Usage:"
+#}
+
 main() {
 	# If no args given
 	[ $# -eq 0 ] && usage
@@ -80,7 +85,7 @@ main() {
 		modify|m) action_modify $* ;;
 		install|i) action_install $* ;;
 		remove|r) action_remove $* ;;
-		*) die "$cmd ${BOLD}$1${RESET}\n${RED}Unknown operation.${RESET}" ;;
+		*) msg_error "Unknown operation $operation" ;;
 	esac
 }
 	
