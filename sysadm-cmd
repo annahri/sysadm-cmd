@@ -4,7 +4,7 @@ set -euo pipefail
 
 cmd="$(basename $0)"
 full_cmd="$0"
-modules_dir="modules"
+modules_dir="$HOME/sysadm-cmd/modules"
 modules_tmpfile="$modules_dir/modules"
 functions_dir="$modules_dir/functions"
 export cmd full_cmd modules_dir modules_tmpfile functions_dir
