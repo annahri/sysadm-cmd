@@ -2,14 +2,34 @@
 
 set -euo pipefail 
 
-readonly ssh="/usr/bin/ssh"
-readonly separator="---"
+readonly ssh="/usr/bin/ssh -o ConnectTimeout=10"
+readonly separator="-"
+
+readonly S_TimedOut="Connection timed out"
+readonly S_Denied="Permission denied"
 
 load_hosts() {
 	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
 	if [ $(echo "$hosts_list" | wc -l) -eq 0 ]; then 
 		msg_error "Empty or malformated hosts file: $hosts_file"
 	fi
+}
+
+check_get_status() {
+	set +e
+	status=$(ssh -o BatchMode=yes \
+		-o ConnectTimeout=10 \
+		-o PubkeyAuthentication=no \
+		-o PasswordAuthentication=no \
+		-o KbdInteractiveAuthentication=no \
+		-o ChallengeResponseAuthentication=no $host 2>&1 \
+		| sed 's/[^[:print:]\t]//')
+	if [ "$(echo -e "$status" | awk '{print $1}')" = "ssh" ]; then
+		status=$(echo -e "$status" | cut -d: -f3)
+	else
+		status=$(echo -e "$status" | grep -w -o "Permission denied")
+	fi
+	set -e
 }
 
 check_get_uptime() {
@@ -23,22 +43,34 @@ check_get_uptime() {
 check_get_users() {
 	if [ 1 -eq $get_users ] || [ 1 -eq $get_all ]; then
 		verbose_msg " -> getting users data"
-	   users=$($ssh ${username}$host cat /etc/passwd | awk -F ':' '$3>=1000 {print $1}' | tr '\n' ',')
-	   users=${users%,}
+	   	users=$($ssh ${username}$host cat /etc/passwd | awk -F ':' '$3>=1000 {print $1}' | tr '\n' ',')
+	   	users=${users%,}
 	fi
 }
 
 check_get_osversion() {
 	if [ 1 -eq $get_os ] || [ 1 -eq $get_all ]; then
 		verbose_msg " -> os version"
-		osversion=$($ssh ${username}$host cat /etc/os-release | grep "PRETT" | sed 's/.*="\(.*\)"/\1/' | tr ' ' '-')
+		osversion=$($ssh ${username}$host sh <<-'EOC'
+			centos="/etc/centos-release"
+			ubuntu="/etc/os-release"
+
+			if test -f /etc/centos-release; then 
+				<"$centos" sed 's/release //;s/Linux //;s/ (Core)//; y/ /-/' 
+			else 
+				<"$ubuntu" sed '/PRETTY/!d; s/.*="\(.*\)"/\1/; y/ /-/'
+			fi
+		EOC
+		)
 	fi
 }
 
 check_get_mem() {
 	if [ 1 -eq $get_mem ] || [ 1 -eq $get_all ]; then
 		verbose_msg " -> total memory"
-		ram=$($ssh ${username}$host cat /proc/meminfo | awk '/MemTotal/ {$2=$2/(1024^2); print $2}' | xargs -I{} python -c 'print(round({}))') 
+		ram=$($ssh ${username}$host cat /proc/meminfo \
+				| awk '/MemTotal/ {$2=$2/(1024^2); print $2}' \
+				| xargs -I{} python -c 'print(round({}))') 
 		ram=${ram%.*}
 	fi
 }
@@ -60,7 +92,7 @@ run_check() {
 	fi
 
 	if [ $file ]; then
-		echo "IP-ADDRESS HOSTNAME UPTIME USERS OS-RELEASE MEM-(GiB) CPU(s)" > $file
+		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-RELEASE MEM-(GiB) CPU(s)" > $file
 	   	verbose_msg "Writing to $file ... "
 	fi
 	defaultuser="root"
@@ -70,30 +102,46 @@ run_check() {
 	verbose_msg "$cmd v$VERSION begin"
 	for host in $hosts; do
 		[ $verbose -eq 0 ] && spinner "Gathering data..."
-		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
+		[ $verbose -eq 1 ] && msg_info "Fetching data for $host"
+#		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
 		
-		status=$(ssh -o BatchMode=yes -o PubkeyAuthentication=no -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o ChallengeResponseAuthentication=no $host 2>&1 | grep -q "Permission denied"; echo $?)
+		check_get_status
 
-		if [ $status -eq 255 ]; then 
+		if [ "$status" = "$S_Denied" ]; then 
 			hostname=$($ssh ${username}$host hostname)
 			check_get_uptime
 			check_get_users
 			check_get_osversion
 			check_get_mem
 			check_get_cpus
+			status="alive"
+		elif [ "$status" = "$S_TimedOut" ]; then
+			status="rto"
+			verbose_msg "   -xxx $S_TimedOut xxx-"
+		else
+			status="unknown"
 		fi
 		
-		output="$host ${hostname:-[OFF-LINE]} ${uptime:-$separator} ${users:-$separator} ${osversion:-$separator} ${ram:-$separator} ${cpucores:-$separator}"
+		output="$host ${hostname:-$separator} \
+			${status:-$separator} \
+			${uptime:-$separator} \
+			${users:-$separator} \
+			${osversion:-$separator} \
+			${ram:-$separator} \
+			${cpucores:-$separator}"
+		output=$(sed 's/\t//g' < <(echo -e "$output"))
 
 		if [ ! -z $file ]; then 
 			echo "$output" >> $file
-			verbose_msg "====== Done appending to $file ======"
+			[ $verbose -eq 1 ] && msg_info "$host done"
+#			verbose_msg "====== Done appending to $file ======"
 		else
-			verbose_msg "=============== Done ==============="
+			[ $verbose -eq 1 ] && msg_info "$host done"
+#			verbose_msg "================= Done ================="
 			fetched_output="${fetched_output}\n$output"
 		fi
 
-		unset hostname uptime users osversion ram cpucores
+		unset hostname uptime users osversion ram cpucores status
 		[ $verbose -eq 0 ] && end_spinner
 	done
 	
@@ -105,7 +153,7 @@ run_check() {
 	else
 		echo
 		msg_success "Done" 
-		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,UPTIME,USERS,OS-RELEASE,MEM-(GiB),CPU(s)" -W 4
+		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-RELEASE,MEM-(GiB),CPU(s)" -W 4
 	fi
 	exit 0
 }
