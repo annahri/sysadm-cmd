@@ -28,24 +28,24 @@ msg() {
 }
 
 msg_success() {
-	msg "${GREEN}[✔]${RESET} ${*}"
+	msg "[${GREEN}✔${RESET}] ${*}"
 }
 
 msg_info() {
-	msg "${BLUE}[i]${RESET} ${*}"
+	msg "[${LIGHT_BLUE}i${RESET}] ${*}"
 }
 
 msg_error() {
-	msg "${RED}[✘]${RESET} ${*}"
+	msg "[${RED}✘${RESET}] ${*}"
 	exit 1
 }
 
 msg_warn() {
-	msg "${YELLOW}[!]${RESET} ${*}"
+	msg "[${YELLOW}!${RESET}] ${*}"
 }
 
 echo_f() {
-	printf '%b\n' "$1$2${RESET}" >&2
+	printf '%b\n' "$1$2${RESET}${3:-}" >&2
 }
 
 verbose_msg() {
