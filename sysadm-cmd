@@ -19,56 +19,37 @@ version() {
 	exit
 }
 
-oneline_usage="$cmd [-h|-v|-m] <check|modify|install|remove> [options]"
+oneline_usage="usage: $cmd [-v] [-m] COMMAND ..."
 
 usage() { 
 	cat<<-EOF
-		Usage: $oneline_usage
-        Use '$cmd -h' for more details.
+		$oneline_usage
+		
+		for more details, run: 
+		$cmd -h
 	EOF
 	exit
 }
 
 longhelp() {
-	cat <<-EOH
-		Usage: $oneline_usage
-
-        Actions:
-          check|c       Check server(s) statuses, eg. uptime, load, hostname, etc.
-          modify|m      Modify server's configuration.
-          install|i     Install listed packages to a server.
-          remove|r      Remove listed packages from a server.                      
-
-        check:
-          List all server statuses and prints it to stdout.
-          -h --host <IP>    
-                List all statuses of <IP>. If not mentioned, it will get statuses from all servers.
-          -
-
-          options:
-          -f --file <file>  
-                Outputs to a file.
-        
-        modify:
-          -h --host <IP>
-                Specify the server.
-        
-        install:
-          -h --host <IP>
-                Specify the server.
-
-          options:
-          -p --package <packages>
-                Packages to be installed. Wrap with double quotes "" for multiple packages.
-          -l --list <file>
-                Install packages listed in file.
-	EOH
-	exit
+	echo -e "${BOLD}$oneline_usage${RESET}"
+	echo
+	echo "optional arguments:"
+	echo "  -h, --help     show this help message and exit"
+    echo "  -v, --version  show program's version number and exit"
+    echo 
+	echo   "commands:"
+	echo_f "${BOLD}" "  check" "     Check host(s) system information, eg. uptime, users, cpucores, mem, etc."
+	echo_f "${BOLD}" "  modify" "    Modify host(s) specified system configuration."
+	echo_f "${BOLD}" "  install" "   Install specified package(s) to the designated host(s)."
+	echo_f "${BOLD}" "  remove" "    Remove specified package(s) from the designated host(s)."
+	echo
+	echo "to get more details for each command, run: $cmd COMMAND --help"
+	echo
+	echo "$cmd is a command line tool for systems administrator"
+	echo "to manage multiple remote servers."
+	echo "repository: github.com/annahri/sysadm-cmd"
 }
-
-#longhelp() {
-#	echo_f "$BOLD" "Usage:"
-#}
 
 main() {
 	# If no args given
