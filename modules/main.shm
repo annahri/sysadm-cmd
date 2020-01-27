@@ -11,20 +11,21 @@ declare -a modules_list=()
 declare -a available_opts=( uptime users os mem cpucores all )
 
 usage_check() {
-	echo "	Prints out server(s) information(s) into STDOUT or into a specified file"
+	echo "Prints out server(s) information(s) into STDOUT or into a specified file"
 	echo
-	echo -e "	${BOLD}Usage:${RESET} $cmd check [-h <IP ADDR>|-o <OPTIONS>|-f <FILE>|-v|--help]"
-	echo -e "	  ${BOLD}-h --host${RESET} <IP ADDR>"
-    echo -e "	        Get the information(s) from a desired HOST instead of everything listed in /etc/hosts."
-	echo -e "	  ${BOLD}-o --options${RESET} <OPTIONS>"
-    echo -e "	        Get only specified information, separated by comma. Available options: ${BOLD}all cpucores mem osversion uptime users${RESET}."
-	echo -e "	  ${BOLD}-f --file${RESET} <FILE>"
-    echo -e "	        Write output to file instead of STDOUT."
+	echo -e "  ${BOLD}Usage:${RESET} $cmd check [-h <IP ADDR>] [-o <OPTIONS>] [-f <FILE>] [-v|--help]"
+	echo -e "    ${BOLD}-h --host${RESET} <IP ADDR>"
+    echo -e "          Get the information(s) from a desired HOST instead of everything listed in /etc/hosts."
+	echo -e "    ${BOLD}-o --options${RESET} <OPTIONS>"
+    echo -e "          Get only specified information, separated by comma." 
+	echo -e "          Available options: ${BOLD}all cpucores mem osversion uptime users${RESET}."
+	echo -e "    ${BOLD}-f --file${RESET} <FILE>"
+    echo -e "          Write output to file instead of STDOUT."
 	echo	
-	echo -e "	  ${BOLD}--help ?${RESET}"
-    echo -e "	        Print this info."
-	echo -e "	  ${BOLD}-v --verbose${RESET}"
-    echo -e "	        Verbose output."
+	echo -e "    ${BOLD}--help ?${RESET}"
+    echo -e "          Print this info."
+	echo -e "    ${BOLD}-v --verbose${RESET}"
+    echo -e "          Verbose output."
 	exit 0
 }
 
