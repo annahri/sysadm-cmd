@@ -94,8 +94,10 @@ run_check() {
 		
 		if [ ! -z "$environment" ]; then
 			if [ "$environment" = "prod" ]; then
+				msg_info "Getting data from Production servers"
 				hosts=$(echo "$hosts_list" | awk '/192.148/')
 			elif [ "$environment" = "dev" ]; then
+				msg_info "Getting data from Development servers"
 				hosts=$(echo "$hosts_list" | awk '! /192.148/')
 			fi
 
