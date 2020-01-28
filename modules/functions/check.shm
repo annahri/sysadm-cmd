@@ -7,6 +7,7 @@ readonly separator="-"
 
 readonly S_TimedOut="Connection timed out"
 readonly S_Denied="Permission denied"
+readonly S_NoRoute="No route to host"
 
 load_hosts() {
 	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
@@ -25,7 +26,7 @@ check_get_status() {
 		-o ChallengeResponseAuthentication=no $host 2>&1 \
 		| sed 's/[^[:print:]\t]//')
 	if [ "$(echo -e "$status" | awk '{print $1}')" = "ssh" ]; then
-		status=$(echo -e "$status" | cut -d: -f3)
+		status=$(echo -e "$status" | cut -d: -f3 | xargs)
 	else
 		status=$(echo -e "$status" | grep -w -o "Permission denied")
 	fi
@@ -118,6 +119,9 @@ run_check() {
 		elif [ "$status" = "$S_TimedOut" ]; then
 			status="rto"
 			verbose_msg "   -xxx $S_TimedOut xxx-"
+		elif [ "$status" = "$S_NoRoute" ]; then
+			status="nr"
+			verbose_msg "   -xxx $S_NoRoute xxx-"
 		else
 			status="unknown"
 		fi
