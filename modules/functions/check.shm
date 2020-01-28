@@ -171,7 +171,7 @@ run_check() {
 		msg_success "Data written to ${BOLD}$file${RESET}"
 	else
 		echo
-		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-VERSION,MEM-(GiB),CPU(s)" -W 4
+		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-VERSION,MEM-(GiB),CPU(s)" -W 5
 	fi
 	exit 0
 }
