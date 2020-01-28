@@ -111,12 +111,11 @@ action_check() {
 			-e|--environment)
 				[ -z "${2:-}" ] && msg_error "Please specify environment: -e <ENV>"
 				environment="${2,,}"
+				shift 2
 				case "$environment" in
 					prod|production|dev|devel|development) break;;
 					*) msg_error "Unknown environment. Possible choices: prod production dev devel development";;
 				esac
-
-				shift 2
 				;;
 			-f|--file)
 				[ -z "${2:-}" ] && msg_error "Please specify output file: -f <FILE>"
