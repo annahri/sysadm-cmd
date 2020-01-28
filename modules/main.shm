@@ -23,6 +23,8 @@ usage_check() {
     echo -e "          Write output to file instead of STDOUT."
 	echo -e "    ${BOLD}-i --infile${RESET} <FILE>"
     echo -e "          Get list of hosts from file."
+	echo -e "    ${BOLD}-e --environment${RESET} <ENV>"
+    echo -e "          Get informations only for ENV servers. Available env: production development"
 	echo	
 	echo -e "    ${BOLD}--help ?${RESET}"
     echo -e "          Print this info."
