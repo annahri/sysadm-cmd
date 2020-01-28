@@ -46,8 +46,8 @@ longhelp() {
 	echo
 	echo "to get more details for each command, run: $cmd COMMAND --help"
 	echo
-	echo "$cmd is a command line tool for systems administrator"
-	echo "to manage multiple remote servers."
+	echo "$cmd is a command line tool for systems administrator to manage multiple remote servers."
+	echo "You should already have your public ssh keys in your target server otherwise, you'll be prompted for password every step."
 	echo "repository: github.com/annahri/sysadm-cmd"
 }
 
