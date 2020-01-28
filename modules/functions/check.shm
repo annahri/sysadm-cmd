@@ -2,7 +2,8 @@
 
 set -euo pipefail 
 
-readonly ssh="/usr/bin/ssh -o ConnectTimeout=10"
+timeout=10
+readonly ssh="/usr/bin/ssh -o ConnectTimeout=$timeout"
 readonly separator="-"
 
 readonly S_TimedOut="Connection timed out"
@@ -44,7 +45,9 @@ check_get_uptime() {
 check_get_users() {
 	if [ 1 -eq $get_users ] || [ 1 -eq $get_all ]; then
 		verbose_msg " -> getting users data"
-	   	users=$($ssh ${username}$host cat /etc/passwd | awk -F ':' '$3>=1000 {print $1}' | tr '\n' ',')
+	   	users=$($ssh ${username}$host cat /etc/passwd \
+			| awk -F ':' '$3>=1000 {print $1}' \
+			| tr '\n' ',')
 	   	users=${users%,}
 	fi
 }
@@ -93,7 +96,7 @@ run_check() {
 	fi
 
 	if [ $file ]; then
-		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-RELEASE MEM-(GiB) CPU(s)" > $file
+		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-VERSION MEM-(GiB) CPU(s)" > $file
 	   	verbose_msg "Writing to $file ... "
 	fi
 	defaultuser="root"
@@ -110,12 +113,12 @@ run_check() {
 
 		if [ "$status" = "$S_Denied" ]; then 
 			hostname=$($ssh ${username}$host hostname)
+			status="alive"
 			check_get_uptime
 			check_get_users
 			check_get_osversion
 			check_get_mem
 			check_get_cpus
-			status="alive"
 		elif [ "$status" = "$S_TimedOut" ]; then
 			status="rto"
 			verbose_msg "   -xxx $S_TimedOut xxx-"
@@ -123,6 +126,7 @@ run_check() {
 			status="nr"
 			verbose_msg "   -xxx $S_NoRoute xxx-"
 		else
+			[ $verbose -eq 1 ] && msg_warn "host down or inaccessible" && sleep 0.5
 			status="unknown"
 		fi
 		
@@ -137,11 +141,9 @@ run_check() {
 
 		if [ ! -z $file ]; then 
 			echo "$output" >> $file
-			[ $verbose -eq 1 ] && msg_info "$host done"
-#			verbose_msg "====== Done appending to $file ======"
+			[ $verbose -eq 1 ] && msg_success "$host done\n"
 		else
-			[ $verbose -eq 1 ] && msg_info "$host done"
-#			verbose_msg "================= Done ================="
+			[ $verbose -eq 1 ] && msg_success "$host done\n"
 			fetched_output="${fetched_output}\n$output"
 		fi
 
@@ -156,8 +158,7 @@ run_check() {
 		msg_success "Data written to ${BOLD}$file${RESET}"
 	else
 		echo
-		msg_success "Done" 
-		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-RELEASE,MEM-(GiB),CPU(s)" -W 4
+		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-VERSION,MEM-(GiB),CPU(s)" -W 4
 	fi
 	exit 0
 }
