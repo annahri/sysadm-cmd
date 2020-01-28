@@ -96,6 +96,7 @@ action_check() {
 	host=
 	file=
 	defaultuser=
+	environment=
 	verbose=0
 
 	get_all=0
@@ -107,6 +108,16 @@ action_check() {
 
 	until [ $# -eq 0 ]; do
 		case $1 in
+			-e|--environment)
+				[ -z "${2:-}" ] && msg_error "Please specify environment: -e <ENV>"
+				environment="${2,,}"
+				case "$environment" in
+					prod|production|dev|devel|development) break;;
+					*) msg_error "Unknown environment. Possible choices: prod production dev devel development";;
+				esac
+
+				shift 2
+				;;
 			-f|--file)
 				[ -z "${2:-}" ] && msg_error "Please specify output file: -f <FILE>"
 				file="$2"
@@ -144,8 +155,9 @@ action_check() {
 				;;
 		esac
 	done
-	[ ! -f $hosts_file ] && msg_error "Not found: $hosts_file"
-	[ ${#options[@]} -eq 0 ] && options=( "all" )	
+	test ! -f $hosts_file  && msg_error "Not found: $hosts_file"
+	test ${#options[@]} -eq 0  && options=( "all" )	
+	test ! -z "$environment"  && test ! -z $host  && unset environment
 
 	do_check
 }

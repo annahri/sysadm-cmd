@@ -91,6 +91,17 @@ run_check() {
 	if [ -z $host ]; then 
 		load_hosts
 		hosts="$hosts_list" 
+		
+		if [ ! -z "$environment" ]; then
+			if [ "$environment" = "prod" ]; then
+				hosts=$(echo "$hosts_list" | awk '/192.148/')
+			elif [ "$environment" = "dev" ]; then
+				hosts=$(echo "$hosts_list" | awk '! /192.148/')
+			fi
+
+			test -z "$hosts" && msg_error "No $environment server(s) in the list."
+		fi
+
 	else
 		hosts="$host"
 	fi
