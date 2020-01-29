@@ -119,8 +119,10 @@ run_check() {
 	local fetched_output=
 
 	verbose_msg "$cmd v$VERSION begin"
+	local xiter=1
+	local totalhosts=$(echo "$hosts" | wc -l)
 	for host in $hosts; do
-		[ $verbose -eq 0 ] && spinner "Gathering data..."
+		[ $verbose -eq 0 ] && spinner "Gathering data ($xiter/$totalhosts)"
 		[ $verbose -eq 1 ] && msg_info "Fetching data for $host"
 #		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
 		
@@ -164,6 +166,7 @@ run_check() {
 
 		unset hostname uptime users osversion ram cpucores status
 		[ $verbose -eq 0 ] && end_spinner
+		((xiter++))
 	done
 	
 	verbose_msg "[${GREEN}✔${RESET}] Fetched Successfuly"
