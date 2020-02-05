@@ -40,8 +40,43 @@ msg_error() {
 	exit 1
 }
 
+msg_errnoex() {
+	msg "[${RED}✘${RESET}] ${*}"
+}
+
 msg_warn() {
 	msg "[${YELLOW}!${RESET}] ${*}"
+}
+
+vmsg_success() {
+	if [ "${verbose:-0}" -eq 1 ]; then 
+		msg "[${GREEN}✔${RESET}] ${*}"
+	fi
+}
+
+vmsg_info() {
+	if [ "${verbose:-0}" -eq 1 ]; then 
+		msg "[${LIGHT_BLUE}i${RESET}] ${*}"
+	fi
+}
+
+vmsg_error() {
+	if [ "${verbose:-0}" -eq 1 ]; then 
+		msg "[${RED}✘${RESET}] ${*}"
+		exit 1
+	fi
+}
+
+vmsg_errnoex() {
+	if [ "${verbose:-0}" -eq 1 ]; then
+		msg "[${RED}✘${RESET}] ${*}"
+	fi
+}
+
+vmsg_warn() {
+	if [ "${verbose:-0}" -eq 1 ]; then 
+		msg "[${YELLOW}!${RESET}] ${*}"
+	fi
 }
 
 echo_f() {
@@ -49,13 +84,13 @@ echo_f() {
 }
 
 verbose_msg() {
-	if [ $verbose -eq 1 ]; then
+	if [ ${verbose:-0} -eq 1 ]; then
 		echo -e "$*" >&2
 	fi
 }
 
 verbose_msgnl() {
-	if [ $verbose -eq 1 ]; then
+	if [ ${verbose:-0} -eq 1 ]; then
 		printf "$*" >&2
 	fi
 }

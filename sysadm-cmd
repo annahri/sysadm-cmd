@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-cmd="$(basename $0)"
+cmd="$(basename "$0")"
 full_cmd="$0"
 modules_dir="$HOME/sysadm-cmd/modules"
 modules_tmpfile="$modules_dir/modules"
@@ -24,9 +24,7 @@ oneline_usage="usage: $cmd [-v] [-m] COMMAND ..."
 usage() { 
 	cat<<-EOF
 		$oneline_usage
-		
-		for more details, run: 
-		$cmd -h
+		for more details, run:	$cmd -h
 	EOF
 	exit
 }
@@ -62,12 +60,12 @@ main() {
 		-h|--help) longhelp ;;
 		-v|--version) version ;;
 		-m|--modules) list_modules ;;
-		check|c) action_check $* ;;
-		modify|m) action_modify $* ;;
-		install|i) action_install $* ;;
-		remove|r) action_remove $* ;;
+		check|c) action_check "$@" ;;
+		modify|m) action_modify "$@" ;;
+		install|i) action_install "$@" ;;
+		remove|r) action_remove "$@" ;;
 		*) msg_error "Unknown operation $operation" ;;
 	esac
 }
 	
-main $@
+main "$@"

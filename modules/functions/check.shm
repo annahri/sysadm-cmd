@@ -3,39 +3,18 @@
 set -euo pipefail 
 
 timeout=10
-readonly ssh="/usr/bin/ssh -o ConnectTimeout=$timeout"
-readonly separator="-"
+readonly blank="-"
 
-readonly S_TimedOut="Connection timed out"
-readonly S_Denied="Permission denied"
-readonly S_NoRoute="No route to host"
+#load_hosts() {
+#	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
+#	if [ $(echo "$hosts_list" | wc -l) -eq 0 ]; then 
+#		msg_error "Empty or malformated hosts file: $hosts_file"
+#	fi
+#}
 
-load_hosts() {
-	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
-	if [ $(echo "$hosts_list" | wc -l) -eq 0 ]; then 
-		msg_error "Empty or malformated hosts file: $hosts_file"
-	fi
-}
-
-check_get_status() {
-	set +e
-	status=$(ssh -o BatchMode=yes \
-		-o ConnectTimeout=10 \
-		-o PubkeyAuthentication=no \
-		-o PasswordAuthentication=no \
-		-o KbdInteractiveAuthentication=no \
-		-o ChallengeResponseAuthentication=no $host 2>&1 \
-		| sed 's/[^[:print:]\t]//')
-	if [ "$(echo -e "$status" | awk '{print $1}')" = "ssh" ]; then
-		status=$(echo -e "$status" | cut -d: -f3 | xargs)
-	else
-		status=$(echo -e "$status" | grep -w -o "Permission denied")
-	fi
-	set -e
-}
 
 check_get_uptime() {
-	if [ 1 -eq $get_uptime ] || [ 1 -eq $get_all ]; then
+	if [ 1 -eq ${get_uptime:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> server uptime" 
 	   	uptime=$($ssh ${username}$host "cut -d ' ' -f 1 /proc/uptime") 
 		uptime=$(convert_seconds $uptime)
@@ -43,7 +22,7 @@ check_get_uptime() {
 }
 
 check_get_users() {
-	if [ 1 -eq $get_users ] || [ 1 -eq $get_all ]; then
+	if [ 1 -eq ${get_users:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> getting users data"
 	   	users=$($ssh ${username}$host cat /etc/passwd \
 			| awk -F ':' '$3>=1000 {print $1}' \
@@ -53,7 +32,7 @@ check_get_users() {
 }
 
 check_get_osversion() {
-	if [ 1 -eq $get_os ] || [ 1 -eq $get_all ]; then
+	if [ 1 -eq ${get_os:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> os version"
 		osversion=$($ssh ${username}$host sh <<-'EOC'
 			centos="/etc/centos-release"
@@ -70,7 +49,7 @@ check_get_osversion() {
 }
 
 check_get_mem() {
-	if [ 1 -eq $get_mem ] || [ 1 -eq $get_all ]; then
+	if [ 1 -eq ${get_mem:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> total memory"
 		ram=$($ssh ${username}$host cat /proc/meminfo \
 				| awk '/MemTotal/ {$2=$2/(1024^2); print $2}' \
@@ -80,45 +59,39 @@ check_get_mem() {
 }
 
 check_get_cpus() {
-	if [ 1 -eq $get_cpucores ] || [ 1 -eq $get_all ]; then
+	if [ 1 -eq ${get_cpucores:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> cpu cores" 
 	   	cpucores=$($ssh ${username}$host lscpu | awk '/^CPU\(s\)/ {print $2}')
 	fi
 }
 
 run_check() {
-	[ ! -z $file ] && rm -f $file
-	if [ -z $host ]; then 
-		load_hosts
-		hosts="$hosts_list" 
-		
-		if [ ! -z "$environment" ]; then
-			case "$environment" in
-				prod|production)
-					msg_info "Getting data from Production servers"
-					hosts=$(echo "$hosts_list" | awk '/192.148/')
-					;;
-				dev|devel|development)
-					msg_info "Getting data from Development servers"
-					hosts=$(echo "$hosts_list" | awk '! /192.148/')
-					;;					
-			esac
-
-			test -z "$hosts" && msg_error "No $environment server(s) in the list."
-		fi
-	else
-		hosts="$host"
-	fi
-
-	if [ $file ]; then
+	if test ! -z "${file:-}"; then 
+		rm -f $file
+	   	vmsg_info "Writing to $file ... "
 		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-VERSION MEM-(GiB) CPU(s)" > $file
-	   	verbose_msg "Writing to $file ... "
 	fi
-	defaultuser="root"
-	local username="${defaultuser}@"
+
+	if [ ! -z "$environment" ]; then
+		case "$environment" in
+			prod|production)
+				msg_info "Getting data from Production servers"
+				hosts=$(echo "$hosts_list" | awk '/192.148/')
+				;;
+			dev|devel|development)
+				msg_info "Getting data from Development servers"
+				hosts=$(echo "$hosts_list" | awk '! /192.148/')
+				;;					
+		esac
+		test -z "$hosts" && msg_error "No $environment server(s) in the list."
+	fi
+
+	local username="${defaultuser:-root}@"
 	local fetched_output=
 
 	verbose_msg "$cmd v$VERSION begin"
+	msg_info "$(date +'%H:%M - %A, %d %B %Y')"
+	test ${noargs:-0} -eq 1 && msg_info "Using ${hosts_file:-/etc/hosts}"
 	local xiter=1
 	local totalhosts=$(echo "$hosts" | wc -l)
 	for host in $hosts; do
@@ -126,9 +99,9 @@ run_check() {
 		[ $verbose -eq 1 ] && msg_info "Fetching data for $host"
 #		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
 		
-		check_get_status
+		host_get_status
 
-		if [ "$status" = "$S_Denied" ]; then 
+		if [ "$status" = "$S_OK" ]; then 
 			hostname=$($ssh ${username}$host hostname)
 			status="alive"
 			check_get_uptime
@@ -147,16 +120,16 @@ run_check() {
 			status="unknown"
 		fi
 		
-		output="$host ${hostname:-$separator} \
-			${status:-$separator} \
-			${uptime:-$separator} \
-			${users:-$separator} \
-			${osversion:-$separator} \
-			${ram:-$separator} \
-			${cpucores:-$separator}"
+		output="$host ${hostname:-$blank} \
+			${status:-$blank} \
+			${uptime:-$blank} \
+			${users:-$blank} \
+			${osversion:-$blank} \
+			${ram:-$blank} \
+			${cpucores:-$blank}"
 		output=$(sed 's/\t//g' < <(echo -e "$output"))
 
-		if [ ! -z $file ]; then 
+		if [ ! -z ${file:-} ]; then 
 			echo "$output" >> $file
 			[ $verbose -eq 1 ] && msg_success "$host done\n"
 		else
@@ -171,7 +144,7 @@ run_check() {
 	
 	verbose_msg "[${GREEN}✔${RESET}] Fetched Successfuly"
 
-	if [ ! -z $file ]; then
+	if [ ! -z ${file:-} ]; then
 		echo
 		msg_success "Data written to ${BOLD}$file${RESET}"
 	else

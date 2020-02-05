@@ -4,16 +4,20 @@ source $modules_dir/helper.shm
 set -o errexit -o pipefail -o noclobber -o nounset
 shopt -s globstar
 
-export VERSION="1.0"
-
+export VERSION="0.2.0"
 
 declare -a modules_list=()
 declare -a available_opts=( uptime users os mem cpucores all )
 
+readonly ssh_timeout=10
+readonly ssh_opts=( 
+	-o PubkeyAuthentication=yes 
+	-o PasswordAuthentication=yes )
+
 usage_check() {
 	echo "Prints out server(s) information(s) into STDOUT or into a specified file"
 	echo
-	echo -e "  ${BOLD}Usage:${RESET} $cmd check [-h <IP ADDR>] [-o <OPTIONS>] [-f <FILE>] [-v|--help]"
+	echo -e "  ${BOLD}Usage:${RESET} $cmd check [-h <IP ADDR>] [-e <ENV>] [-i <FILE>] [-o <OPTIONS>] [-f <FILE>] [-v|--help]"
 	echo -e "    ${BOLD}-h --host${RESET} <IP ADDR>"
     echo -e "          Get the information(s) from a desired HOST instead of everything listed in /etc/hosts."
 	echo -e "    ${BOLD}-o --options${RESET} <OPTIONS>"
@@ -26,6 +30,56 @@ usage_check() {
 	echo -e "    ${BOLD}-e --environment${RESET} <ENV>"
     echo -e "          Get informations only for ENV servers. Available env: production development"
 	echo	
+	echo -e "    ${BOLD}--help ?${RESET}"
+    echo -e "          Print this info."
+	echo -e "    ${BOLD}-v --verbose${RESET}"
+    echo -e "          Verbose output."
+	exit 0
+}
+
+usage_modify() {
+	exit 0
+}
+
+usage_install() {
+	echo "Installs specified package(s) to the designated host(s)"
+	echo "Currently supports only on Debian and RHEL based operating systems."
+	echo
+	echo -e "  ${BOLD}Usage:${RESET} install -p PACKAGES [-h IP|FILE] [-e ENV] "
+	echo -e "    ${BOLD}-h --host${RESET} <IP ADDR|FILE>"
+	echo -e "          Install package(s) ONLY to desired HOST instead of hosts list in /etc/hosts."
+	echo -e "    ${BOLD}-i --in-file${RESET} <FILE>"
+	echo -e "          Load hosts list from file."
+	echo -e "    ${BOLD}-p --packages${RESET} <PACKAGES>"
+	echo -e "          Package(s) to be installed. Comma separated."
+	echo -e "    ${BOLD}-P${RESET} <FILE>"
+	echo -e "          Get package(s) list from file."
+	echo -e "    ${BOLD}-e --environment${RESET} ENVIRONMENT"
+    echo -e "          Install only to ENV servers. Available env: production development."
+	echo
+	echo -e "    ${BOLD}--help ?${RESET}"
+    echo -e "          Print this info."
+	echo -e "    ${BOLD}-v --verbose${RESET}"
+    echo -e "          Verbose output."
+	exit 0
+}
+
+usage_remove() {
+	echo "Removes specified package(s) from the designated host(s)"
+	echo "Currently supports only on Debian and RHEL based operating systems."
+	echo
+	echo -e "  ${BOLD}Usage:${RESET} remove -p PACKAGES [-h IP|FILE] [-e ENV] "
+	echo -e "    ${BOLD}-h --host${RESET} <IP ADDR|FILE>"
+	echo -e "          Remove package(s) ONLY from desired HOST instead of hosts list in /etc/hosts."
+	echo -e "    ${BOLD}-i --in-file${RESET} <FILE>"
+	echo -e "          Load hosts list from file."
+	echo -e "    ${BOLD}-p --packages${RESET} <PACKAGES>"
+	echo -e "          Package(s) to be removed. Comma separated."
+	echo -e "    ${BOLD}-P${RESET} <FILE>"
+	echo -e "          Get package(s) list from file."
+	echo -e "    ${BOLD}-e --environment${RESET} ENVIRONMENT"
+    echo -e "          Remove only from ENV servers. Available env: production development."
+	echo
 	echo -e "    ${BOLD}--help ?${RESET}"
     echo -e "          Print this info."
 	echo -e "    ${BOLD}-v --verbose${RESET}"
@@ -47,27 +101,43 @@ load_modules() {
 }
 
 load_hosts() {
-	hosts_file="/etc/hosts"
-	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' $hosts_file)
-	if [ "$hosts_file" = "/etc/hosts" ] && [ -z "$hosts_list" ]; then
-		msg_error "$cmd is using $hosts_file to load hosts list. Please list your servers IP addresses there."
+	hosts_list=$(awk '!/^[#;]|localhost|127.0.0.1/ && NF {print $1}' "${hosts_file:-/etc/hosts}")
+	if [ "$(echo "$hosts_list" | wc -l)" -eq 0 ]; then 
+		msg_error "Empty or malformated hosts file: ${hosts_file:-/etc/hosts}"
 	fi
 }
+
+readonly ssh="/usr/bin/ssh -o ConnectTimeout=$ssh_timeout ${ssh_opts[@]}"
+
+readonly S_TimedOut="Connection timed out"
+readonly S_OK="Permission denied"
+readonly S_NoRoute="No route to host"
+
+host_get_status() {
+	set +e
+	status=$($ssh -o BatchMode=yes \
+		-o PubkeyAuthentication=no \
+		-o PasswordAuthentication=no \
+		-o KbdInteractiveAuthentication=no \
+		-o ChallengeResponseAuthentication=no $host 2>&1 \
+		| sed 's/[^[:print:]\t]//')
+	if [ "$(echo -e "$status" | awk '{print $1}')" = "ssh" ]; then
+		status=$(echo -e "$status" | cut -d: -f3 | xargs)
+	else
+		status=$(echo -e "$status" | grep -w -o "Permission denied")
+	fi
+	set -e
+}
+
+export -f host_get_status
 
 die() {
 	echo -e "$1"
 	exit 1
 }
 
-load_modules
-
-do_check() {
-	verify_options
-	check_main
-}
-
 verify_options() {
-	for option in ${options[@]}; do
+	for option in "${options[@]}"; do
 		if ! array_contains "$option" "${available_opts[@]}" ; then
 			msg_warn "Unknown option: ${RED}$option${RESET}"
 			msg_info "Available options: ${GREEN}${available_opts[@]}${GREEN}"
@@ -79,7 +149,7 @@ verify_options() {
 }
 
 assign_options() {
-	for option in ${options[@]}; do
+	for option in "${options[@]}"; do
 		export get_${option}=1
 	done
 }
@@ -94,49 +164,50 @@ debug_opts() {
 
 action_check() {
 	declare -a options=()
-	hosts_file="/etc/hosts"
-	host=
-	file=
 	defaultuser=
 	environment=
 	verbose=0
 
-	get_all=0
-	get_uptime=0
-	get_users=0
-	get_os=0
-	get_mem=0
-	get_cpucores=0
+	#get_all=0
+	#get_uptime=0
+	#get_users=0
+	#get_os=0
+	#get_mem=0
+	#get_cpucores=0
 
 	until [ $# -eq 0 ]; do
 		case $1 in
 			-e|--environment)
-				[ -z "${2:-}" ] && msg_error "Please specify environment: -e <ENV>"
+				test -z "${2:-}" && msg_error "Please specify environment: -e <ENV>"
 				environment="${2,,}"
-				shift 2
 				case "$environment" in
 					prod|production|dev|devel|development) continue;;
-					*) msg_error "Unknown environment. Possible choices: prod production dev devel development";;
+					*) msg_error "Unknown environment. Possible env: production development";;
 				esac
+				shift 2
 				;;
 			-f|--file)
-				[ -z "${2:-}" ] && msg_error "Please specify output file: -f <FILE>"
+				test -z "${2:-}"  && msg_error "Please specify output file: -f <FILE>"
 				file="$2"
 				shift 2
 				;;
 			-h|--host)
-				[ -z "${2:-}" ] && msg_error "$cmd check -h ${BOLD}<IP-ADDR>${RESET}\nOr did you mean help? Use ${BOLD}--help${RESET} or ${BOLD}?${RESET}"
-				host="$2"
+				test -z "${2:-}" && msg_error "$cmd check -h ${BOLD}<IP-ADDR>${RESET}\nOr did you mean help? Use ${BOLD}--help${RESET} or ${BOLD}?${RESET}"
+				hosts="$2"
 				shift 2
 				;;
 			-i|--infile)
-				[ -z "${2:-}" ] && msg_error "Please specify hosts list file: -i <IN-FILE>"
+				test -z "${2:-}"  && msg_error "Please specify hosts list file: -i <IN-FILE>"
+				test ! -f $2  && msg_error "Not found: $2"
 				hosts_file="$2"
+
+				load_hosts
+				hosts="$hosts_list"
 				shift 2
 				;;
 			-o|--options)
 				[ -z "${2:-}" ] && msg_error "Please specify get options separated by comma.\n    Available options: ${BLUE}${available_opts[@]}${RESET}"
-				options=(${2//,/ })
+				options=(${2//,/ })				
 				shift 2
 				;;
 			-u|--username)
@@ -156,21 +227,163 @@ action_check() {
 				;;
 		esac
 	done
-	test ! -f $hosts_file  && msg_error "Not found: $hosts_file"
-	test ${#options[@]} -eq 0  && options=( "all" )	
-	test ! -z "$environment"  && test ! -z $host  && unset environment
 
-	do_check
+	if [ -z "${host:-}" ]; then
+		if [ -z "${hosts:-}" ]; then
+			load_hosts
+			hosts="$hosts_list"
+			export noargs=1
+		fi
+	else
+		test ! -z "$environment" && unset environment
+	fi
+
+	test ${#options[@]} -eq 0  && options=( "all" )	
+
+	verify_options
+	check_main
 }
 
 action_modify() {
-	echo "Modify"
+	echo "To be implemented soon"
 }
 
 action_install() {
-	echo "Install"
+	test $# -eq 0 && usage_install
+	declare -a pkgs=()
+
+	until [ $# -eq 0 ]; do
+		case "$1" in
+			-e|--environment)
+				[ -z ${2:-} ] && msg_error "Please specify environment: -e ENV"
+				environment="${2,,}"
+				shift 2
+				case "$environment" in
+					prod|production|dev|devel|development) continue ;;
+					*) msg_error "Unknown environment. Possible choices: production development" ;;
+				esac
+				;;
+			-h|--host)
+				[ -z "${2:-}" ] && msg_error "Please specify IP address or file (list of hosts)."
+				hosts="$2"
+				shift 2
+				;;
+			-i|--in-file)
+				test -z "${2:-}" &&  msg_error "Please specify input file."
+				test ! -f "$2" && msg_error "Not found: $2"
+				hosts_file="$2"
+				load_hosts
+				hosts="$hosts_list"
+				shift 2
+				;;
+			-p|--package)
+				test -z ${2:-} && msg_error "What package(s) to install?\nSeparate by comma if multiple."
+				pkgs=(${2//,/ })
+				shift 2
+				;;
+			-P|--pkg-list)
+				test -z "${2:-}" && msg_error "Please specify input file."
+				in_pkgs="$2"
+				shift 2
+				;;
+			-u|--username)
+				test -z "${2:-}" && msg_error "Please specify username."
+				defaultuser="$2"
+				shift 2
+				;;
+			-v|--verbose)
+				verbose=1
+				shift
+				;;
+			--help|?)
+				usage_install
+				;;
+			*)
+				msg_error "Unknown option $1"
+				;;
+		esac
+	done
+	
+	if [ -z "${host:-}" ]; then
+		if [ -z "${hosts:-}" ]; then
+			load_hosts
+			hosts="$hosts_list"
+			export noargs=1
+		fi
+	else
+		test ! -z "${environment:-}" && unset environment
+	fi
+
+	install_main
 }
 
 action_remove() {
-	echo "Remove"
+	test $# -eq 0 && usage_remove
+	declare -a pkgs=()
+
+	until [ $# -eq 0 ]; do
+		case "$1" in
+			-e|--environment)
+				[ -z ${2:-} ] && msg_error "Please specify environment: -e ENV"
+				environment="${2,,}"
+				shift 2
+				case "$environment" in
+					prod|production|dev|devel|development) continue ;;
+					*) msg_error "Unknown environment. Possible choices: production development" ;;
+				esac
+				;;
+			-h|--host)
+				[ -z "${2:-}" ] && msg_error "Please specify IP address or file (list of hosts)."
+				hosts="$2"
+				shift 2
+				;;
+			-i|--in-file)
+				test -z "${2:-}" &&  msg_error "Please specify input file."
+				test ! -f "$2" && msg_error "Not found: $2"
+				hosts_file="$2"
+				load_hosts
+				hosts="$hosts_list"
+				shift 2
+				;;
+			-p|--package)
+				test -z ${2:-} && msg_error "What package(s) to be removed?\nSeparate by comma if multiple."
+				pkgs=(${2//,/ })
+				shift 2
+				;;
+			-P|--pkg-list)
+				test -z "${2:-}" && msg_error "Please specify input file."
+				in_pkgs="$2"
+				shift 2
+				;;
+			-u|--username)
+				test -z "${2:-}" && msg_error "Please specify username."
+				defaultuser="$2"
+				shift 2
+				;;
+			-v|--verbose)
+				verbose=1
+				shift
+				;;
+			--help|?)
+				usage_remove
+				;;
+			*)
+				msg_error "Unknown option $1"
+				;;
+		esac
+	done
+	
+	if [ -z "${host:-}" ]; then
+		if [ -z "${hosts:-}" ]; then
+			load_hosts
+			hosts="$hosts_list"
+			export noargs=1
+		fi
+	else
+		test ! -z "${environment:-}" && unset environment
+	fi
+
+	remove_main
 }
+
+load_modules
