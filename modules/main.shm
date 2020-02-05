@@ -115,7 +115,8 @@ readonly S_NoRoute="No route to host"
 
 host_get_status() {
 	set +e
-	status=$($ssh -o BatchMode=yes \
+	status=$(ssh -o ConnectTimeout=$ssh_timeout \
+		-o BatchMode=yes \
 		-o PubkeyAuthentication=no \
 		-o PasswordAuthentication=no \
 		-o KbdInteractiveAuthentication=no \
