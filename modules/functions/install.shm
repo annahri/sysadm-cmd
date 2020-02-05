@@ -1,0 +1,55 @@
+#! /bin/bash
+
+set -euo pipefail
+
+declare -a pkgs_ubuntu=()
+declare -a pkgs_centos=()
+export pkgs_ubuntu pkgs_centos
+
+fetch_pkgs() {
+	unset upkg cpkg
+
+	for pkg in "${pkgs[@]}"; do
+		if [[ "$pkg" == *devel ]]; then
+			base_pkg="${pkg%-*}"
+			upkg="$base_pkg-dev"
+		elif [[ "$pkg" == *dev ]];then
+			base_pkg="${pkg%-*}"
+			cpkg="$base_pkg-devel"
+		fi
+		
+		pkgs_ubuntu+=(${upkg:-$pkg})
+		pkgs_centos+=(${cpkg:-$pkg})
+		
+	done
+}
+
+install_pkgs() {
+	eval $ssh ${username}$host sh <<-EOC
+		if type yum > /dev/null 2>&1; then
+			echo "${pkgs_centos[@]}"
+			yum install -y ${pkgs_centos[@]}
+		else
+			echo "${pkgs_ubuntu[@]}"
+			apt-get install -y ${pkgs_ubuntu[@]}
+		fi	
+	EOC
+}
+
+install_main() {
+	local username="${defaultuser:-root}@"
+	vmsg_info "Hosts file: " "${hosts_file:-/etc/hosts}"
+	vmsg_info "Packages:" "${pkgs[@]}"
+
+	fetch_pkgs
+	
+	local xiter=1
+	local totalhosts=$(echo "$hosts" | wc -l)
+	for host in ${hosts}; do
+		msg_info "Installing on $host... ($xiter/$totalhosts)"
+		install_pkgs || true
+		msg_success "Done"
+		echo
+		((xiter++))		
+	done
+}
