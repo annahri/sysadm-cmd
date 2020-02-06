@@ -60,10 +60,9 @@ main() {
 		-h|--help) longhelp ;;
 		-v|--version) version ;;
 		-m|--modules) list_modules ;;
-		check|c) action_check "$@" ;;
-		modify|m) action_modify "$@" ;;
-		install|i) action_install "$@" ;;
-		remove|r) action_remove "$@" ;;
+		check|ch|c) action_check "$@" ;;
+		install|it|i) action_install "$@" ;;
+		remove|rm|r) action_remove "$@" ;;
 		*) msg_error "Unknown operation $operation" ;;
 	esac
 }
