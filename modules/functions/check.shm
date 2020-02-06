@@ -25,7 +25,7 @@ check_get_users() {
 	if [ 1 -eq ${get_users:-0} ] || [ 1 -eq ${get_all:-0} ]; then
 		verbose_msg " -> getting users data"
 	   	users=$($ssh ${username}$host cat /etc/passwd \
-			| awk -F ':' '$3>=1000 {print $1}' \
+			| awk -F ':' '$3>=500 {print $1}' \
 			| tr '\n' ',')
 	   	users=${users%,}
 	fi
@@ -39,7 +39,7 @@ check_get_osversion() {
 			ubuntu="/etc/os-release"
 
 			if test -f /etc/centos-release; then 
-				<"$centos" sed 's/release //;s/Linux //;s/ (Core)//; y/ /-/' 
+				<"$centos" sed 's/release //;s/Linux //;y/ /-/' 
 			else 
 				<"$ubuntu" sed '/PRETTY/!d; s/.*="\(.*\)"/\1/; y/ /-/'
 			fi
