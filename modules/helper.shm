@@ -83,6 +83,10 @@ echo_f() {
 	printf '%b\n' "$1$2${RESET}${3:-}" >&2
 }
 
+msg_lr() {
+  printf "\r%*s\r%s\n" $(tput cols) "$2" "$1";
+}
+
 verbose_msg() {
 	if [ ${verbose:-0} -eq 1 ]; then
 		echo -e "$*" >&2
@@ -98,12 +102,12 @@ verbose_msgnl() {
 spinner() {
 	while :;do 
 		for s in / - \\ \|; do 
-			echo -en "\r[$s] $*" >&2
+			printf "\r[%s] %s" "$s" "$*"  >&2
 			sleep .1
 		done
 	done & spinner="$!"
 	pids="${spinner} ${pids:-}"
-	trap end_spinner EXIT SIGTERM SIGKILL SIGHUP SIGQUIT SIGABRT
+	trap end_spinner EXIT SIGTERM SIGHUP SIGQUIT SIGABRT
 }
 
 end_spinner() {

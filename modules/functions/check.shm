@@ -95,7 +95,7 @@ run_check() {
 	local xiter=1
 	local totalhosts=$(echo "$hosts" | wc -l)
 	for host in $hosts; do
-		[ $verbose -eq 0 ] && spinner "Gathering data ($xiter/$totalhosts)"
+		[ $verbose -eq 0 ] && spinner "Gathering data" "[$xiter/$totalhosts]"
 		[ $verbose -eq 1 ] && msg_info "Fetching data for $host"
 #		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
 		

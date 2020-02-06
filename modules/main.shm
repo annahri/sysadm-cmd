@@ -4,7 +4,7 @@ source $modules_dir/helper.shm
 set -o errexit -o pipefail -o noclobber -o nounset
 shopt -s globstar
 
-export VERSION="0.2.0"
+export VERSION="1.0.0"
 
 declare -a modules_list=()
 declare -a available_opts=( uptime users os mem cpucores all )
