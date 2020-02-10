@@ -76,11 +76,11 @@ run_check() {
 		case "$environment" in
 			prod|production)
 				msg_info "Getting data from Production servers"
-				hosts=$(echo "$hosts_list" | awk '/192.148/' | sort -n)
+				hosts=$(echo "$hosts_list" | awk '/192.148/' | LC_ALL=C sort -n -t '.' -k 4,4)
 				;;
 			dev|devel|development)
 				msg_info "Getting data from Development servers"
-				hosts=$(echo "$hosts_list" | awk '! /192.148/' | sort -n)
+				hosts=$(echo "$hosts_list" | awk '! /192.148/' | LC_ALL=C sort -n -t '.' -k 4,4)
 				;;					
 		esac
 		test -z "$hosts" && msg_error "No $environment server(s) in the list."
