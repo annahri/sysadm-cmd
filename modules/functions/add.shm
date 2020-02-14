@@ -1,0 +1,111 @@
+#! /usr/bin/bash
+
+set -euo pipefail
+
+check_passphrase() {
+	pfile="~/.ssh/ssh_pass"
+	if [ ! -f "$pfile" ]; then
+		msg_error "Please create $pfile and add: "
+	fi
+}
+
+add_key() {
+	default_key="$HOME/.ssh/id_rsa.pub"
+	[ $# -eq 0 ] && usage_add_key
+	until [ "$#" -eq 0 ]; do
+		case $1 in
+			-c|--comment)
+				[ -z "${2:-}" ] && msg_error "Please add comment."
+				comment="$2"
+				shift 2
+				;;
+			-h|--to-host)
+				[ -z "${2:-}" ] && msg_error "Please specify destination host."
+				host="$2"
+				shift 2
+				;;
+			-f|--from-host)
+				[ -z "${2:-}" ] && msg_error "Please specify source host."
+				from_host="$2"
+				shift 2
+				;;
+			-i|--key)
+				[ -z "${2:-}" ] && msg_error "Please specify pub key file."
+				[ ! -f "$2" ] && msg_error "File not found."
+				file="$2"
+				shift 2
+				;;
+			-v|--verbose)
+				verbose=1
+				shift
+				;;
+			--help|\?)
+				usage_add_key
+				shift
+				;;
+			*)
+				msg_error "Unknown option $1"
+				;;
+		esac
+	done
+	[ -z "${host:-}" ] && msg_error "Where to copy then?"
+	[ -z "${file:-}" ] && msg_info "Using default ssh key: $default_key" && file="$default_key"
+	[ -z "${host:-}" ] && [ ! -z "$from_host" ] && msg_error "Must specify source host."
+
+	add_key_main
+}
+
+add_user() {
+	echo
+}
+
+add_key_main() {
+	source ~/.ssh/ssh_pass
+	local tempfile="/tmp/$RANDOM"
+	local host_name
+	if [ -z "${from_host:-}" ]; then
+		if [ ${verbose:-0} -eq 0 ]; then
+			spinner "Copying ssh key to $host"
+		else
+			msg_info "Copying ssh key to $host"
+		fi
+		cat <<-EOF > $tempfile
+			#! /usr/bin/expect
+			spawn ssh-copy-id -i $file ${user:-root}@$host
+			expect "Password:"
+			send "$ssh_password\r"
+			interact
+		EOF
+		chmod u+x $tempfile
+		eval $tempfile > /dev/null
+		[ ${verbose:-0} -eq 0 ] && end_spinner
+		rm -f $tempfile
+		host_name=$(ssh ${user:-root}@$host hostname)
+		vmsg_info "Appending $host to /etc/hosts"
+		if [ "$EUID" -eq 0 ]; then
+			printf "%s\\n" "$host $host_name #${comment:-}" >> /etc/hosts
+		else
+			printf "%s\\n" "$host $host_name #${comment:-}" | sudo tee -a /etc/hosts > /dev/null
+		fi
+		msg_success "Done"
+	else
+		if [ ${verbose:-0} -eq 0 ]; then 
+			spinner "Copying ssh key from $from_host to $host"
+		else
+			msg_info "Copying ssh key from $from_host to $host"
+		fi
+		cat <<-EOF > $tempfile
+			#! /usr/bin/expect
+			spawn ssh -t ${user:-root}@$from_host ssh-copy-id $host
+			expect "Password:"
+			send "$ssh_password\r"
+			interact
+		EOF
+		chmod u+x $tempfile
+		eval $tempfile > /dev/null
+		[ ${verbose:-0} -eq 0 ] && end_spinner
+		rm -f $tempfile
+		msg_success "Done"
+	fi
+	exit 0
+}
