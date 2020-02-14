@@ -37,7 +37,7 @@ usage_check() {
 	exit 0
 }
 
-usage_modify() {
+usage_add() {
 	exit 0
 }
 
@@ -85,6 +85,25 @@ usage_remove() {
 	echo -e "    ${BOLD}-v --verbose${RESET}"
     echo -e "          Verbose output."
 	exit 0
+}
+
+usage_add_key() {
+	echo "Copies ssh key to a host. Or copies ssh key from a host to a destination host."
+	echo "You should already have your ssh key generated."
+	echo
+	echo -e "  ${BOLD}Usage:${RESET} $cmd add key <-h DST-HOST> [-f SRC-HOST] [-i PUB-KEY] [options]"
+	echo -e "    ${BOLD}-h --to-host${RESET} <DST-HOST>"
+	echo -e "          Copy ssh key to DST-HOST."
+	echo -e "    ${BOLD}-f --from-host${RESET} <SRC-HOST>"
+	echo -e "          Copy ssh key from SRC-HOST to DST-HOST. If this option is used, then ${BOLD}-h${RESET}" is mandatory.
+	echo -e "    ${BOLD}-i --key${RESET} <PUB-KEY>"
+	echo -e "          Specify pubkey file to be copied."
+	echo
+	echo -e "    ${BOLD}--help ?${RESET}"
+	echo -e "          Print this info."
+	echo -e "    ${BOLD}-v --verbose${RESET}"
+	echo -e "          Verbose output."
+	exit
 }
 
 load_modules() {	
@@ -220,7 +239,7 @@ action_check() {
 				verbose=1
 				shift
 				;;
-			--help|?)
+			--help|\?)
 				usage_check
 				;;
 			*)
@@ -245,8 +264,14 @@ action_check() {
 	check_main
 }
 
-action_modify() {
-	echo "To be implemented soon"
+action_add() {
+	test $# -eq 0 && usage_add
+	
+	case "$1" in
+		key) shift; add_key "$@";;
+		user) shift; add_user "$@";;
+		*) msg_error "Unknown option $1" ;;
+	esac
 }
 
 action_install() {
@@ -296,7 +321,7 @@ action_install() {
 				verbose=1
 				shift
 				;;
-			--help|?)
+			--help|\?)
 				usage_install
 				;;
 			*)
@@ -365,7 +390,7 @@ action_remove() {
 				verbose=1
 				shift
 				;;
-			--help|?)
+			--help|\?)
 				usage_remove
 				;;
 			*)

@@ -41,7 +41,7 @@ check_get_osversion() {
 			if test -f /etc/centos-release; then 
 				<"$centos" sed 's/release //;s/Linux //;y/ /-/' 
 			else 
-				<"$ubuntu" sed '/PRETTY/!d; s/.*="\(.*\)"/\1/; y/ /-/'
+				<"$ubuntu" grep -i 'PRETTY' | sed 's/.*="\(.*\)"/\1/; y/ /-/'
 			fi
 		EOC
 		)

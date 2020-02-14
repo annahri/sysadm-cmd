@@ -36,12 +36,12 @@ msg_info() {
 }
 
 msg_error() {
-	msg "[${RED}✘${RESET}] ${*}"
+	msg "[${RED}x${RESET}] ${*}"
 	exit 1
 }
 
 msg_errnoex() {
-	msg "[${RED}✘${RESET}] ${*}"
+	msg "[${RED}x${RESET}] ${*}"
 }
 
 msg_warn() {
@@ -102,7 +102,7 @@ verbose_msgnl() {
 spinner() {
 	while :;do 
 		for s in / - \\ \|; do 
-			printf "\r[%s] %s" "$s" "$*"  >&2
+			printf "\r%s %s\r" "$*" "$s"  >&2
 			sleep .1
 		done
 	done & spinner="$!"

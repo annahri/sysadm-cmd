@@ -60,6 +60,7 @@ main() {
 		-h|--help) longhelp ;;
 		-v|--version) version ;;
 		-m|--modules) list_modules ;;
+		add|a) action_add "$@" ;;
 		check|ch|c) action_check "$@" ;;
 		install|it|i) action_install "$@" ;;
 		remove|rm|r) action_remove "$@" ;;
