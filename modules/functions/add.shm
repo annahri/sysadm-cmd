@@ -4,9 +4,10 @@ set -euo pipefail
 
 check_passphrase() {
 	pfile="~/.ssh/ssh_pass"
-	if [ ! -f "$pfile" ]; then
-		msg_error "Please create $pfile and add: "
-	fi
+	[ ! -f "$pfile" ] && { 
+		msg_error "Please create $pfile and add:\nssh_password=\"YOUR PASSWORD\""
+	}
+	source $pfile
 }
 
 add_key() {
@@ -60,7 +61,7 @@ add_user() {
 }
 
 add_key_main() {
-	source ~/.ssh/ssh_pass
+	check_passphrase
 	local tempfile="/tmp/$RANDOM"
 	local host_name
 	if [ -z "${from_host:-}" ]; then

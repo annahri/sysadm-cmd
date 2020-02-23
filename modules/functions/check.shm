@@ -2,7 +2,6 @@
 
 set -euo pipefail 
 
-timeout=10
 readonly blank="-"
 
 #load_hosts() {
@@ -14,17 +13,17 @@ readonly blank="-"
 
 
 check_get_uptime() {
-	if [ 1 -eq ${get_uptime:-0} ] || [ 1 -eq ${get_all:-0} ]; then
+	if [ 1 -eq "${get_uptime:-0}" ] || [ 1 -eq "${get_all:-0}" ]; then
 		verbose_msg " -> server uptime" 
-	   	uptime=$($ssh ${username}$host "cut -d ' ' -f 1 /proc/uptime") 
-		uptime=$(convert_seconds $uptime)
+	   	uptime=$($ssh "${username}$host" "cut -d ' ' -f 1 /proc/uptime") 
+		uptime=$(convert_seconds "$uptime")
 	fi
 }
 
 check_get_users() {
-	if [ 1 -eq ${get_users:-0} ] || [ 1 -eq ${get_all:-0} ]; then
+	if [ 1 -eq "${get_users:-0}" ] || [ 1 -eq "${get_all:-0}" ]; then
 		verbose_msg " -> getting users data"
-	   	users=$($ssh ${username}$host cat /etc/passwd \
+	   	users=$($ssh "${username}$host" cat /etc/passwd \
 			| awk -F ':' '$3>=500 {print $1}' \
 			| tr '\n' ',')
 	   	users=${users%,}
@@ -32,9 +31,9 @@ check_get_users() {
 }
 
 check_get_osversion() {
-	if [ 1 -eq ${get_os:-0} ] || [ 1 -eq ${get_all:-0} ]; then
+	if [ 1 -eq "${get_os:-0}" ] || [ 1 -eq "${get_all:-0}" ]; then
 		verbose_msg " -> os version"
-		osversion=$($ssh ${username}$host sh <<-'EOC'
+		osversion=$($ssh "$username$host" sh <<-'EOC'
 			centos="/etc/centos-release"
 			ubuntu="/etc/os-release"
 
@@ -49,9 +48,9 @@ check_get_osversion() {
 }
 
 check_get_mem() {
-	if [ 1 -eq ${get_mem:-0} ] || [ 1 -eq ${get_all:-0} ]; then
+	if [ 1 -eq "${get_mem:-0}" ] || [ 1 -eq "${get_all:-0}" ]; then
 		verbose_msg " -> total memory"
-		ram=$($ssh ${username}$host cat /proc/meminfo \
+		ram=$($ssh "$username$host" cat /proc/meminfo \
 				| awk '/MemTotal/ {$2=$2/(1024^2); print $2}' \
 				| xargs -I{} python -c 'print(round({}))') 
 		ram=${ram%.*}
@@ -59,17 +58,17 @@ check_get_mem() {
 }
 
 check_get_cpus() {
-	if [ 1 -eq ${get_cpucores:-0} ] || [ 1 -eq ${get_all:-0} ]; then
+	if [ 1 -eq "${get_cpucores:-0}" ] || [ 1 -eq "${get_all:-0}" ]; then
 		verbose_msg " -> cpu cores" 
-	   	cpucores=$($ssh ${username}$host lscpu | awk '/^CPU\(s\)/ {print $2}')
+	   	cpucores=$($ssh "$username$host" lscpu | awk '/^CPU\(s\)/ {print $2}')
 	fi
 }
 
 run_check() {
 	if test ! -z "${file:-}"; then 
-		rm -f $file
+		rm -f "$file"
 	   	vmsg_info "Writing to $file ... "
-		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-VERSION MEM-(GiB) CPU(s)" > $file
+		echo "IP-ADDRESS HOSTNAME STATUS UPTIME USERS OS-VERSION MEM-(GiB) CPU(s)" > "$file"
 	fi
 
 	if [ ! -z "$environment" ]; then
@@ -91,18 +90,18 @@ run_check() {
 
 	verbose_msg "$cmd v$VERSION begin"
 	msg_info "$(date +'%H:%M - %A, %d %B %Y')"
-	test ${noargs:-0} -eq 1 && msg_info "Using ${hosts_file:-/etc/hosts}"
+	test "${noargs:-0}" -eq 1 && msg_info "Using ${hosts_file:-/etc/hosts}"
 	local xiter=1
 	local totalhosts=$(echo "$hosts" | wc -l)
 	for host in $hosts; do
-		[ $verbose -eq 0 ] && spinner "Gathering data" "[$xiter/$totalhosts]"
-		[ $verbose -eq 1 ] && msg_info "Fetching data for $host"
+		[ "$verbose" -eq 0 ] && spinner "Gathering data" "[$xiter/$totalhosts]"
+		[ "$verbose" -eq 1 ] && msg_info "Fetching data for $host"
 #		verbose_msg "=== Fetching data for ${BOLD}$host${RESET} ===" 
 		
 		host_get_status
 
 		if [ "$status" = "$S_OK" ]; then 
-			hostname=$($ssh ${username}$host hostname)
+			hostname=$($ssh "${username}$host" hostname)
 			status="alive"
 			check_get_uptime
 			check_get_users
@@ -116,7 +115,7 @@ run_check() {
 			status="nr"
 			verbose_msg "   -xxx $S_NoRoute xxx-"
 		else
-			[ $verbose -eq 1 ] && msg_warn "host down or inaccessible" && sleep 0.5
+			[ "$verbose" -eq 1 ] && msg_warn "host down or inaccessible" && sleep 0.5
 			status="unknown"
 		fi
 		
@@ -131,14 +130,14 @@ run_check() {
 
 		if [ ! -z ${file:-} ]; then 
 			echo "$output" >> $file
-			[ $verbose -eq 1 ] && msg_success "$host done\n"
+			[ "$verbose" -eq 1 ] && msg_success "$host done\\n"
 		else
-			[ $verbose -eq 1 ] && msg_success "$host done\n"
-			fetched_output="${fetched_output}\n$output"
+			[ "$verbose" -eq 1 ] && msg_success "$host done\\n"
+			fetched_output="${fetched_output}\\n$output"
 		fi
 
 		unset hostname uptime users osversion ram cpucores status
-		[ $verbose -eq 0 ] && end_spinner
+		[ "$verbose" -eq 0 ] && end_spinner
 		((xiter++))
 	done
 	

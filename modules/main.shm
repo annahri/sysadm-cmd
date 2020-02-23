@@ -38,6 +38,13 @@ usage_check() {
 }
 
 usage_add() {
+	echo "Usage: ${cmd} add COMMAND ..."
+	echo
+	echo -e "  ${BOLD}Commands:${RESET}"
+	echo -ne "    ${BOLD}key${RESET}"
+	echo -e "          Copies ssh key to designated host."
+	echo -ne "    ${BOLD}user${RESET}"
+	echo -e "         Adds PAM user to designated host."
 	exit 0
 }
 
@@ -107,11 +114,9 @@ usage_add_key() {
 }
 
 load_modules() {	
-	if [ -d $functions_dir ]; then
-		rm -f $modules_tmpfile
+	if [ -d "$functions_dir" ]; then
 		for function in $functions_dir/*.shm; do
-			source $function
-#			echo "$function" >> $modules_tmpfile
+			source "$function"
 		done
 		unset function
 	else
@@ -126,7 +131,7 @@ load_hosts() {
 	fi
 }
 
-readonly ssh="/usr/bin/ssh -o ConnectTimeout=$ssh_timeout ${ssh_opts[@]}"
+readonly ssh="/usr/bin/ssh -o ConnectTimeout=$ssh_timeout ${ssh_opts[*]}"
 
 readonly S_TimedOut="Connection timed out"
 readonly S_OK="Permission denied"
@@ -151,11 +156,6 @@ host_get_status() {
 
 export -f host_get_status
 
-die() {
-	echo -e "$1"
-	exit 1
-}
-
 verify_options() {
 	for option in "${options[@]}"; do
 		if ! array_contains "$option" "${available_opts[@]}" ; then
@@ -170,30 +170,23 @@ verify_options() {
 
 assign_options() {
 	for option in "${options[@]}"; do
-		export get_${option}=1
+		export get_"${option}"=1
 	done
 }
 
-debug_opts() {
-	printf "Getting info for : "
-	for opt in ${options[@]}; do
-		printf "${GREEN}$opt${RESET} "
-	done
-	printf "\n"
-}
+#debug_opts() {
+#	printf "Getting info for : "
+#	for opt in ${options[@]}; do
+#		printf "${GREEN}$opt${RESET} "
+#	done
+#	printf "\n"
+#}
 
 action_check() {
 	declare -a options=()
 	defaultuser=
 	environment=
 	verbose=0
-
-	#get_all=0
-	#get_uptime=0
-	#get_users=0
-	#get_os=0
-	#get_mem=0
-	#get_cpucores=0
 
 	until [ $# -eq 0 ]; do
 		case $1 in
@@ -218,7 +211,7 @@ action_check() {
 				;;
 			-i|--infile)
 				test -z "${2:-}"  && msg_error "Please specify hosts list file: -i <IN-FILE>"
-				test ! -f $2  && msg_error "Not found: $2"
+				test ! -f '$2'  && msg_error "Not found: $2"
 				hosts_file="$2"
 
 				load_hosts
@@ -226,7 +219,7 @@ action_check() {
 				shift 2
 				;;
 			-o|--options)
-				[ -z "${2:-}" ] && msg_error "Please specify get options separated by comma.\n    Available options: ${BLUE}${available_opts[@]}${RESET}"
+				[ -z "${2:-}" ] && msg_error "Please specify get options separated by comma.\\n    Available options: ${BLUE}${available_opts[*]}${RESET}"
 				options=(${2//,/ })				
 				shift 2
 				;;
@@ -281,7 +274,7 @@ action_install() {
 	until [ $# -eq 0 ]; do
 		case "$1" in
 			-e|--environment)
-				[ -z ${2:-} ] && msg_error "Please specify environment: -e ENV"
+				[ -z "${2:-}" ] && msg_error "Please specify environment: -e ENV"
 				environment="${2,,}"
 				shift 2
 				case "$environment" in
@@ -289,15 +282,59 @@ action_install() {
 					*) msg_error "Unknown environment. Possible choices: production development" ;;
 				esac
 				;;
+			-e=*)
+				environment="${2/-e=}"
+				environment="${environment,,}"
+				shift 2
+				case "$environment" in
+					prod|production|dev|devel|development) continue ;;
+					*) msg_error "Unknown environment. Possible choices: production development" ;;
+				esac
+				;;
+			-e*)
+				environment="${2/-e}"
+				environment="${environment,,}"
+				shift 2
+				case "$environment" in
+					prod|production|dev|devel|development) continue ;;
+					*) msg_error "Unknown environment. Possible choices: production development" ;;
+				esac
+				;;
 			-h|--host)
-				[ -z "${2:-}" ] && msg_error "Please specify IP address or file (list of hosts)."
+				[ -z "${2:-}" ] && msg_error "Please specify IP address"
 				hosts="$2"
+				shift 2
+				;;
+			-h=*)
+				hosts="${2/-h=}"
+				[ -z "$host" ] && msg_error "Please specify IP address"
+				shift 2
+				;;
+			-h*)
+				hosts="${2/-h}"
+				[ -z "$host" ] && msg_error "Please specify IP address"
 				shift 2
 				;;
 			-i|--in-file)
 				test -z "${2:-}" &&  msg_error "Please specify input file."
 				test ! -f "$2" && msg_error "Not found: $2"
 				hosts_file="$2"
+				load_hosts
+				hosts="$hosts_list"
+				shift 2
+				;;
+			-i=*)
+				hosts_file="${2/-i=}"
+				[ -z "$hosts_file" ] && msg_error "Please specify input file"
+				[ ! -f "$hosts_file" ] && msg_error "Not found: $2"
+				load_hosts
+				hosts="$hosts_list"
+				shift 2
+				;;
+			-i*)
+				hosts_file="${2/-i}"
+				[ -z "$hosts_file" ] && msg_error "Please specify input file"
+				[ ! -f "$hosts_file" ] && msg_error "Not found: $2"
 				load_hosts
 				hosts="$hosts_list"
 				shift 2
