@@ -3,8 +3,9 @@
 set -euo pipefail
 
 check_passphrase() {
-	pfile="~/.ssh/ssh_pass"
+	pfile="$HOME/.ssh/ssh_pass"
 	[ ! -f "$pfile" ] && { 
+		test -f $pfile && msg_info "Exists"
 		msg_error "Please create $pfile and add:\nssh_password=\"YOUR PASSWORD\""
 	}
 	source $pfile
