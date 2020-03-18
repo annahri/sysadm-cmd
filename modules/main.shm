@@ -157,20 +157,38 @@ host_get_status() {
 export -f host_get_status
 
 verify_options() {
-	for option in "${options[@]}"; do
-		if ! array_contains "$option" "${available_opts[@]}" ; then
-			msg_warn "Unknown option: ${RED}$option${RESET}"
-			msg_info "Available options: ${GREEN}${available_opts[@]}${GREEN}"
-			exit 1
-		fi
-	done
+  if [ ${#options} -ne 0 ]; then
+  	for option in "${options[@]}"; do
+	  	if ! array_contains "$option" "${available_opts[@]}" ; then
+		  	msg_warn "Unknown option: ${RED}$option${RESET}"
+		  	msg_info "Available options: ${GREEN}${available_opts[@]}${GREEN}"
+		  	exit 1
+		  fi
+	  done
+  else
+    cols+=(0)
+    return
+  fi
 
 	assign_options
 }
 
 assign_options() {
+  # UPTIME 4
+  # USERS 5
+  # OS-VERSION 6
+  # MEM 7
+  # CPU 8
+
 	for option in "${options[@]}"; do
 		export get_"${option}"=1
+    case $option in
+      uptime) cols=(${cols[@]/4});;
+      users) cols=(${cols[@]/5});;
+      os) cols=(${cols[@]/6});;
+      mem) cols=(${cols[@]/7});;
+      cpucores) cols=(${cols[@]/8});;
+    esac
 	done
 }
 
@@ -184,6 +202,8 @@ assign_options() {
 
 action_check() {
 	declare -a options=()
+  declare -a cols=( 4 5 6 7 8 )
+
 	defaultuser=
 	environment=
 	verbose=0

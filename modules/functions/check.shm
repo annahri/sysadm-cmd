@@ -148,7 +148,9 @@ run_check() {
 		msg_success "Data written to ${BOLD}$file${RESET}"
 	else
 		echo
-		echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-VERSION,MEM-(GiB),CPU(s)" -W 5
+    if [[ ${cols[@]} ]]; then cols_="${cols[@]}"; cols_="${cols_// /,}"; fi
+    echo "COLS= $cols_"
+    echo -e "$fetched_output" | column -t -s ' ' -N "IP-ADDRESS,HOSTNAME,STATUS,UPTIME,USERS,OS-VERSION,MEM-(GiB),CPU(s)" -W 5 -H "${cols_:-0}"
 	fi
 	exit 0
 }
