@@ -157,18 +157,13 @@ host_get_status() {
 export -f host_get_status
 
 verify_options() {
-  if [ ${#options} -ne 0 ]; then
-  	for option in "${options[@]}"; do
-	  	if ! array_contains "$option" "${available_opts[@]}" ; then
-		  	msg_warn "Unknown option: ${RED}$option${RESET}"
-		  	msg_info "Available options: ${GREEN}${available_opts[@]}${GREEN}"
-		  	exit 1
-		  fi
-	  done
-  else
-    cols+=(0)
-    return
-  fi
+  for option in "${options[@]}"; do
+	 	if ! array_contains "$option" "${available_opts[@]}" ; then
+	  	msg_warn "Unknown option: ${RED}$option${RESET}"
+	  	msg_info "Available options: ${GREEN}${available_opts[@]}${GREEN}"
+	  	exit 1
+	  fi
+	done
 
 	assign_options
 }
@@ -179,10 +174,10 @@ assign_options() {
   # OS-VERSION 6
   # MEM 7
   # CPU 8
-
 	for option in "${options[@]}"; do
 		export get_"${option}"=1
     case $option in
+      all) cols=( 0 );;
       uptime) cols=(${cols[@]/4});;
       users) cols=(${cols[@]/5});;
       os) cols=(${cols[@]/6});;
@@ -191,14 +186,6 @@ assign_options() {
     esac
 	done
 }
-
-#debug_opts() {
-#	printf "Getting info for : "
-#	for opt in ${options[@]}; do
-#		printf "${GREEN}$opt${RESET} "
-#	done
-#	printf "\n"
-#}
 
 action_check() {
 	declare -a options=()
@@ -219,34 +206,109 @@ action_check() {
 					*) msg_error "Unknown environment. Possible env: production development";;
 				esac
 				;;
+      -e=*)
+        test -z "${1#*=}" && msg_error "Please specify environment: -e=ENVIRONMENT"
+        environment="${1#*=}"
+        shift
+        case "$environment" in
+          prod*|dev*) continue;;
+          *) msg_error "Unknown environment. Possible env: production development";;
+        esac
+        ;;
+      -e*)
+        test -z "${1#-e}" && msg_error "Please specify environment: -e=ENVIRONMENT"
+        environment="${1#-e}"
+        shift
+        case "$environment" in
+          prod*|dev*) continue;;
+          *) msg_error "Unknown environment. Possible env: production development";;
+        esac
+        ;;
 			-f|--file)
 				test -z "${2:-}"  && msg_error "Please specify output file: -f <FILE>"
 				file="$2"
 				shift 2
+				;;
+			-f=*)
+				test -z "${1#*=}"  && msg_error "Please specify output file: -f=<FILE>"
+				file="${1#*=}"
+				shift 
+				;;
+			-f*)
+				test -z "${1#-f}"  && msg_error "Please specify output file: -f<FILE>"
+				file="${1#-f}"
+				shift 
 				;;
 			-h|--host)
 				test -z "${2:-}" && msg_error "$cmd check -h ${BOLD}<IP-ADDR>${RESET}\nOr did you mean help? Use ${BOLD}--help${RESET} or ${BOLD}?${RESET}"
 				hosts="$2"
 				shift 2
 				;;
+			-h=*)
+				test -z "${1#*=}" && msg_error "$cmd check -h=${BOLD}<IP-ADDR>${RESET}\nOr did you mean help? Use ${BOLD}--help${RESET} or ${BOLD}?${RESET}"
+				hosts="${1#*=}"
+				shift 
+				;;
+			-h*)
+				test -z "${1#-h}" && msg_error "$cmd check -h${BOLD}<IP-ADDR>${RESET}\nOr did you mean help? Use ${BOLD}--help${RESET} or ${BOLD}?${RESET}"
+				hosts="${1#-h}"
+				shift 
+				;;
 			-i|--infile)
 				test -z "${2:-}"  && msg_error "Please specify hosts list file: -i <IN-FILE>"
 				test ! -f '$2'  && msg_error "Not found: $2"
 				hosts_file="$2"
-
 				load_hosts
 				hosts="$hosts_list"
 				shift 2
+				;;
+			-i=*)
+				test -z "${1#*=}"  && msg_error "Please specify hosts list file: -i=<IN-FILE>"
+				hosts_file="${1#*=}"
+				test ! -f "$hosts_file"  && msg_error "Not found: $hosts_file"
+				load_hosts
+				hosts="$hosts_list"
+				shift
+				;;
+			-i*)
+				test -z "${1#-i}"  && msg_error "Please specify hosts list file: -i<IN-FILE>"
+				hosts_file="${1#-i}"
+				test ! -f "$hosts_file"  && msg_error "Not found: $hosts_file"
+				load_hosts
+				hosts="$hosts_list"
+				shift
 				;;
 			-o|--options)
 				[ -z "${2:-}" ] && msg_error "Please specify get options separated by comma.\\n    Available options: ${BLUE}${available_opts[*]}${RESET}"
 				options=(${2//,/ })				
 				shift 2
 				;;
+			-o=*)
+				[ -z "${1#*=}" ] && msg_error "Please specify get options separated by comma.\\n    Available options: ${BLUE}${available_opts[*]}${RESET}"
+        vars="${1#*=}"
+				options=(${vars//,/ })				
+				shift 
+				;;
+			-o*)
+				[ -z "${1#-o}" ] && msg_error "Please specify get options separated by comma.\\n    Available options: ${BLUE}${available_opts[*]}${RESET}"
+        vars="${1#-o}"
+				options=(${vars//,/ })				
+				shift 
+				;;
 			-u|--username)
 				[ -z "${2:-}" ] && msg_error "Please specify username: -u <USERNAME>"
 				defaultuser=$2
 				shift 2
+				;;
+			-u=*)
+				[ -z "${1#*=}" ] && msg_error "Please specify username: -u=<USERNAME>"
+				defaultuser="${1#*=}"
+				shift
+				;;
+			-u*)
+				[ -z "${1#-u}" ] && msg_error "Please specify username: -u<USERNAME>"
+				defaultuser="${1#-u}"
+				shift
 				;;
 			-v|--verbose)
 				verbose=1
@@ -303,18 +365,18 @@ action_install() {
 				esac
 				;;
 			-e=*)
-				environment="${2/-e=}"
+				environment="${1#*=}"
 				environment="${environment,,}"
-				shift 2
+				shift
 				case "$environment" in
 					prod|production|dev|devel|development) continue ;;
 					*) msg_error "Unknown environment. Possible choices: production development" ;;
 				esac
 				;;
 			-e*)
-				environment="${2/-e}"
+				environment="${1#-e}"
 				environment="${environment,,}"
-				shift 2
+				shift 
 				case "$environment" in
 					prod|production|dev|devel|development) continue ;;
 					*) msg_error "Unknown environment. Possible choices: production development" ;;
@@ -326,14 +388,14 @@ action_install() {
 				shift 2
 				;;
 			-h=*)
-				hosts="${2/-h=}"
+				hosts="${1#*=}"
 				[ -z "$host" ] && msg_error "Please specify IP address"
-				shift 2
+				shift 
 				;;
 			-h*)
-				hosts="${2/-h}"
+				hosts="${1#-h}"
 				[ -z "$host" ] && msg_error "Please specify IP address"
-				shift 2
+				shift 
 				;;
 			-i|--in-file)
 				test -z "${2:-}" &&  msg_error "Please specify input file."
@@ -344,20 +406,20 @@ action_install() {
 				shift 2
 				;;
 			-i=*)
-				hosts_file="${2/-i=}"
+				hosts_file="${1#*=}"
 				[ -z "$hosts_file" ] && msg_error "Please specify input file"
 				[ ! -f "$hosts_file" ] && msg_error "Not found: $2"
 				load_hosts
 				hosts="$hosts_list"
-				shift 2
+				shift 
 				;;
 			-i*)
-				hosts_file="${2/-i}"
+				hosts_file="${1#-i}"
 				[ -z "$hosts_file" ] && msg_error "Please specify input file"
 				[ ! -f "$hosts_file" ] && msg_error "Not found: $2"
 				load_hosts
 				hosts="$hosts_list"
-				shift 2
+				shift 
 				;;
 			-p|--package)
 				test -z ${2:-} && msg_error "What package(s) to install?\nSeparate by comma if multiple."
